@@ -1,0 +1,9 @@
+comment: false
+coverage:
+  status:
+    patch:
+      default:
+        threshold: 50%
+    project:
+      default:
+        threshold: 10%
