@@ -6,8 +6,36 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/ccremer/plogr)][goreport]
 [![Codecov](https://img.shields.io/codecov/c/github/ccremer/plogr?token=DB62QRSU2D)][codecov]
 
-go-logr implementation with [pterm](https://github.com/pterm/pterm)
+[go-logr](https://github.com/go-logr/logr) implementation with [pterm](https://github.com/pterm/pterm)
 
+## Usage
+
+See [examples](./examples/example_test.go)
+
+### Add more colors and levels
+
+By default, only level 0 (`info`) and level 1 (`debug`) are supported.
+
+While go-logr doesn't have names for logging levels ("info", "warning", etc), pterm does.
+Both libraries agree that verbosity is increased with higher numeric logging level.
+For pterm however, one could argue that their "Warning" and "Success" levels have lower verbosity than "Info".
+If you like to customize the levels or styling, you could do something like this:
+
+```go
+func main() {
+    sink := plogr.NewPtermSink()
+    sink.LevelPrinters[0] = pterm.Warning
+    sink.LevelPrinters[1] = pterm.Success
+    sink.LevelPrinters[2] = pterm.Info
+    sink.LevelPrinters[3] = *pterm.Debug.WithShowLineNumber(true)
+    rootLogger := logr.New(sink)
+}
+```
+
+That means whenever you want to show informational messages, you'd have to set the logging level to `2` in your code base.
+Alternatively, without breaking the code base, append levels like `success` to the LevelPrinters to your desired level, disregarding the verbosity increase though.
+
+The error printer can be customized as well, but it has its own field.
 
 [releases]: https://github.com/ccremer/plogr/releases
 [codecov]: https://app.codecov.io/gh/ccremer/plogr
