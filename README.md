@@ -7,3 +7,8 @@
 [![Codecov](https://img.shields.io/codecov/c/github/ccremer/plogr?token=DB62QRSU2D)][codecov]
 
 go-logr implementation with [pterm](https://github.com/pterm/pterm)
+
+
+[releases]: https://github.com/ccremer/plogr/releases
+[codecov]: https://app.codecov.io/gh/ccremer/plogr
+[goreport]: https://goreportcard.com/report/github.com/ccremer/plogr
