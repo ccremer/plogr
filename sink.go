@@ -13,18 +13,15 @@ type PtermSink struct {
 	// LevelPrinters maps a pterm.PrefixPrinter to each supported log level.
 	LevelPrinters map[int]pterm.PrefixPrinter
 	// ErrorPrinter is the instance that formats and styles error messages.
-	ErrorPrinter  pterm.PrefixPrinter
-	KeyValueColor pterm.Color
+	ErrorPrinter pterm.PrefixPrinter
 
-	keyValues map[string]interface{}
-	scope     string
+	keyValues        map[string]interface{}
+	messageFormatter func(msg string, keysAndValues map[string]interface{}) string
+	scope            string
 }
 
 // ScopeSeparator delimits logger names.
 var ScopeSeparator = ":"
-
-// KeyJoiner delimits key=value pairs.
-var KeyJoiner = " "
 
 // DefaultLevelPrinters contains the default pterm.PrefixPrinter for a specific log levels.
 var DefaultLevelPrinters = map[int]pterm.PrefixPrinter{
@@ -32,15 +29,30 @@ var DefaultLevelPrinters = map[int]pterm.PrefixPrinter{
 	1: pterm.Debug,
 }
 
+// DefaultFormatter returns a string that looks as following (with colored key/values):
+//  * message
+//  * message (key="value" foo="bar")
+var DefaultFormatter = func(msg string, keysAndValues map[string]interface{}) string {
+	if len(keysAndValues) <= 0 {
+		return msg
+	}
+	pairs := make([]string, 0)
+	for k, v := range keysAndValues {
+		pairs = append(pairs, fmt.Sprintf("%s=\"%+v\"", k, v))
+	}
+	msg = fmt.Sprintf("%s %s", msg, pterm.FgGray.Sprint("(", strings.Join(pairs, " "), ")"))
+	return msg
+}
+
 // NewPtermSink returns a new logr.LogSink instance where messages are being printed with pterm.PrefixPrinter.
 // PtermSink.LevelPrinters and PtermSink.ErrorPrinter are initialized with DefaultLevelPrinters resp. pterm.Error.
 // PtermSink.KeyValueColor is the color that is applied when logging keys and values and defaults to pterm.FgGray.
 func NewPtermSink() PtermSink {
 	return PtermSink{
-		LevelPrinters: DefaultLevelPrinters,
-		ErrorPrinter:  pterm.Error,
-		KeyValueColor: pterm.FgGray,
-		keyValues:     map[string]interface{}{},
+		LevelPrinters:    DefaultLevelPrinters,
+		ErrorPrinter:     pterm.Error,
+		keyValues:        map[string]interface{}{},
+		messageFormatter: DefaultFormatter,
 	}
 }
 
@@ -70,11 +82,9 @@ func (s PtermSink) Error(err error, msg string, kvs ...interface{}) {
 }
 
 func (s PtermSink) print(printer pterm.PrefixPrinter, kvs []interface{}, msg string) {
-	pairs := s.kvPairs(kvs...)
-	if len(pairs) > 0 {
-		msg = fmt.Sprintf("%s %s", msg, s.KeyValueColor.Sprint("(", strings.Join(pairs, KeyJoiner), ")"))
-	}
-	printer.Println(msg)
+	kvMap := s.toMap(kvs...)
+	formatted := s.messageFormatter(msg, kvMap)
+	printer.Println(formatted)
 }
 
 // WithValues implements logr.LogSink.
@@ -88,11 +98,11 @@ func (s PtermSink) WithValues(kvs ...interface{}) logr.LogSink {
 		newMap[kvs[i].(string)] = kvs[i+1]
 	}
 	return &PtermSink{
-		scope:         s.scope,
-		keyValues:     newMap,
-		LevelPrinters: s.LevelPrinters,
-		ErrorPrinter:  s.ErrorPrinter,
-		KeyValueColor: s.KeyValueColor,
+		scope:            s.scope,
+		keyValues:        newMap,
+		LevelPrinters:    s.LevelPrinters,
+		ErrorPrinter:     s.ErrorPrinter,
+		messageFormatter: s.messageFormatter,
 	}
 }
 
@@ -101,11 +111,11 @@ func (s PtermSink) WithValues(kvs ...interface{}) logr.LogSink {
 // The value of the name is joined with the existing name, delimited by ScopeSeparator.
 func (s PtermSink) WithName(name string) logr.LogSink {
 	newSink := &PtermSink{
-		scope:         s.joinName(s.scope, name),
-		keyValues:     s.keyValues,
-		LevelPrinters: map[int]pterm.PrefixPrinter{},
-		ErrorPrinter:  s.ErrorPrinter,
-		KeyValueColor: s.KeyValueColor,
+		scope:            s.joinName(s.scope, name),
+		keyValues:        s.keyValues,
+		LevelPrinters:    map[int]pterm.PrefixPrinter{},
+		ErrorPrinter:     s.ErrorPrinter,
+		messageFormatter: s.messageFormatter,
 	}
 	for level, printer := range s.LevelPrinters {
 		newPrinter := printer.WithScope(pterm.Scope{Text: name, Style: printer.Scope.Style})
@@ -115,20 +125,21 @@ func (s PtermSink) WithName(name string) logr.LogSink {
 	return newSink
 }
 
-func (s *PtermSink) kvPairs(kvs ...interface{}) []string {
+func (s *PtermSink) toMap(kvs ...interface{}) map[string]interface{} {
 	if len(kvs)%2 == 1 {
 		// Ensure an odd number of items here does not corrupt the list
 		kvs = append(kvs, nil)
 	}
-	kvPairs := make([]string, 0)
+	kvMap := map[string]interface{}{}
 
 	for k, v := range s.keyValues {
-		kvPairs = append(kvPairs, fmt.Sprintf("%s=\"%s\"", k, v))
+		kvMap[k] = v
 	}
 	for i := 0; i < len(kvs); i += 2 {
-		kvPairs = append(kvPairs, fmt.Sprintf("%s=\"%+v\"", kvs[i], kvs[i+1]))
+		key := kvs[i].(string)
+		kvMap[key] = kvs[i+1]
 	}
-	return kvPairs
+	return kvMap
 }
 
 func (s *PtermSink) joinName(s1, s2 string) string {

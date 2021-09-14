@@ -8,43 +8,35 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPtermSink_KvPairs(t *testing.T) {
+func TestPtermSink_DefaultFormatter(t *testing.T) {
 	tests := map[string]struct {
-		givenKVMap         map[string]interface{}
-		givenKeysAndValues []interface{}
-		expectedResult     []string
+		givenKeysAndValues map[string]interface{}
+		expectedResult     string
 	}{
 		"GivenNil_ThenReturnEmptyString": {
 			givenKeysAndValues: nil,
-			expectedResult:     []string{},
+			expectedResult:     "message",
 		},
 		"GivenEmptyList_ThenReturnEmptyString": {
-			givenKeysAndValues: []interface{}{},
-			expectedResult:     []string{},
+			givenKeysAndValues: map[string]interface{}{},
+			expectedResult:     "message",
 		},
 		"GivenSingleEntry_WhenValueNil_ThenReturnNilRepresentation": {
-			givenKeysAndValues: []interface{}{"key"},
-			expectedResult:     []string{"key=\"<nil>\""},
+			givenKeysAndValues: map[string]interface{}{"key": nil},
+			expectedResult:     "message \x1b[90m(key=\"<nil>\")\x1b[0m",
 		},
 		"GivenSingleEntry_WhenValueNumber_ThenReturnAsString": {
-			givenKeysAndValues: []interface{}{"key", 0},
-			expectedResult:     []string{"key=\"0\""},
+			givenKeysAndValues: map[string]interface{}{"key": 0},
+			expectedResult:     "message \x1b[90m(key=\"0\")\x1b[0m",
 		},
 		"GivenSingleEntry_WhenValueArray_ThenReturnAsString": {
-			givenKeysAndValues: []interface{}{"key", []int{0, 1, 2}},
-			expectedResult:     []string{"key=\"[0 1 2]\""},
-		},
-		"GivenExistingKeyValueMap_WhenKVGiven_ThenCombine": {
-			givenKVMap:         map[string]interface{}{"another": "value"},
-			givenKeysAndValues: []interface{}{"key", []int{0, 1, 2}},
-			expectedResult:     []string{"another=\"value\"", "key=\"[0 1 2]\""},
+			givenKeysAndValues: map[string]interface{}{"key": []int{0, 1, 2}},
+			expectedResult:     "message \x1b[90m(key=\"[0 1 2]\")\x1b[0m",
 		},
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			s := NewPtermSink()
-			s.keyValues = tt.givenKVMap
-			result := s.kvPairs(tt.givenKeysAndValues...)
+			result := DefaultFormatter("message", tt.givenKeysAndValues)
 			assert.Equal(t, tt.expectedResult, result)
 		})
 	}
