@@ -28,7 +28,7 @@ var KeyJoiner = " "
 
 // DefaultLevelPrinters contains the default pterm.PrefixPrinter for a specific log levels.
 var DefaultLevelPrinters = map[int]pterm.PrefixPrinter{
-	0: pterm.Info,
+	0: *pterm.Info.WithPrefix(pterm.Prefix{Text: " INFO  ", Style: pterm.Info.Prefix.Style}),
 	1: pterm.Debug,
 }
 
