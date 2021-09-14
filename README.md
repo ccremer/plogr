@@ -23,14 +23,21 @@ If you like to customize the levels or styling, you could do something like this
 
 ```go
 func main() {
-    sink := plogr.NewPtermSink()
-    sink.LevelPrinters[0] = pterm.Warning
-    sink.LevelPrinters[1] = pterm.Success
-    sink.LevelPrinters[2] = pterm.Info
-    sink.LevelPrinters[3] = *pterm.Debug.WithShowLineNumber(true)
-    rootLogger := logr.New(sink)
+	sink := plogr.NewPtermSink()
+	sink.LevelPrinters[3] = pterm.Debug
+	sink.LevelPrinters[2] = plogr.DefaultLevelPrinters[0]
+	sink.LevelPrinters[1] = pterm.Success
+	sink.LevelPrinters[0] = pterm.Warning
+
+	logger := logr.New(sink)
+	logger.V(0).WithName("main").Info("Warning message")
+	logger.V(1).WithName("app").Info("Success message")
+	logger.V(2).WithName("database").Info("Info message", "key", "value")
+	logger.V(3).WithName("controller").Info("Debug message")
 }
 ```
+
+![example output](./examples/example_output.png "example output")
 
 That means whenever you want to show informational messages, you'd have to set the logging level to `2` in your code base.
 Alternatively, without breaking the code base, append levels like `success` to the LevelPrinters to your desired level, disregarding the verbosity increase though.
