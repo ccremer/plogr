@@ -1,9 +1,11 @@
 package plogr
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/go-logr/logr"
+	"github.com/pterm/pterm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -62,4 +64,97 @@ func TestPtermSink_WithName(t *testing.T) {
 		assert.NotEqual(t, logger.GetSink().(PtermSink).scope, newScope)
 		assert.Equal(t, "scope:nested", newScope)
 	})
+}
+
+func TestPtermSink_Enabled(t *testing.T) {
+	sink := NewPtermSink()
+	t.Run("GivenEnabledLevel_ThenReturnTrue", func(t *testing.T) {
+		enabled := sink.Enabled(0)
+		assert.True(t, enabled)
+	})
+	t.Run("GivenInexistingLevel_ThenReturnFalse", func(t *testing.T) {
+		enabled := sink.Enabled(10000)
+		assert.False(t, enabled)
+	})
+}
+
+func TestPtermSink_WithValues(t *testing.T) {
+	sink := NewPtermSink()
+
+	sink.keyValues["key"] = "value"
+	assert.Len(t, sink.keyValues, 1)
+
+	t.Run("GivenNewInstance_ThenDoNotModifyExisting", func(t *testing.T) {
+		sink.WithValues("foo", "bar")
+
+		// Assert that it didn't modify existing instance
+		assert.Equal(t, "value", sink.keyValues["key"])
+		assert.Len(t, sink.keyValues, 1)
+	})
+	t.Run("GivenNewInstance_ThenCopyFromExistingInstance", func(t *testing.T) {
+		newSink := sink.WithValues("foo", "bar").(*PtermSink)
+
+		assert.Equal(t, "value", newSink.keyValues["key"])
+		assert.Equal(t, "bar", newSink.keyValues["foo"])
+		assert.Len(t, newSink.keyValues, 2)
+	})
+}
+
+func TestPtermSink_toMap(t *testing.T) {
+	tests := map[string]struct {
+		givenKvs    []interface{}
+		existingKvs map[string]interface{}
+		expectedMap map[string]interface{}
+	}{
+		"GivenNilKeys_ThenReturnEmptyMap": {
+			givenKvs:    nil,
+			expectedMap: map[string]interface{}{},
+		},
+		"GivenEmptyKeys_ThenReturnEmptyMap": {
+			givenKvs:    []interface{}{},
+			expectedMap: map[string]interface{}{},
+		},
+		"GivenKeyWithValue_ThenReturnSinglyEntry": {
+			givenKvs: []interface{}{"key", "value"},
+			expectedMap: map[string]interface{}{
+				"key": "value",
+			},
+		},
+		"GivenKeyWithValue_WhenValueEmpty_ThenReturnSinglyEntry": {
+			givenKvs: []interface{}{"key"},
+			expectedMap: map[string]interface{}{
+				"key": nil,
+			},
+		},
+		"GivenExistingKeyWithValue_ThenReturnCombinedEntries": {
+			givenKvs: []interface{}{"key"},
+			existingKvs: map[string]interface{}{
+				"foo": "bar",
+			},
+			expectedMap: map[string]interface{}{
+				"key": nil,
+				"foo": "bar",
+			},
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			sink := NewPtermSink()
+			sink.keyValues = tt.existingKvs
+			result := sink.toMap(tt.givenKvs...)
+
+			assert.Equal(t, tt.expectedMap, result)
+		})
+	}
+}
+
+func TestPtermSink_Info(t *testing.T) {
+	out := bytes.Buffer{}
+	pterm.SetDefaultOutput(&out)
+
+	sink := NewPtermSink()
+	sink.Info(0, "message", "key", "value")
+
+	// The expected output is actually from "golden" execution, but it should notify us on unnoticed changes
+	assert.Equal(t, "\x1b[30;46m\x1b[30;46m  INFO   \x1b[0m\x1b[0m \x1b[96m\x1b[96mmessage \x1b[90m(key=\"value\")\x1b[0m\x1b[96m\x1b[0m\x1b[0m\n", out.String())
 }
