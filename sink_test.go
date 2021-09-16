@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/go-logr/logr"
-	"github.com/pterm/pterm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -148,13 +147,31 @@ func TestPtermSink_toMap(t *testing.T) {
 	}
 }
 
-func TestPtermSink_Info(t *testing.T) {
+func TestPtermSink_WithOutput(t *testing.T) {
 	out := bytes.Buffer{}
-	pterm.SetDefaultOutput(&out)
 
 	sink := NewPtermSink()
-	sink.Info(0, "message", "key", "value")
+	newSink := sink.WithOutput(&out)
+	assert.NotEqual(t, sink.writer, newSink.writer)
+
+	newSink.Info(0, "message", "key", "value")
 
 	// The expected output is actually from "golden" execution, but it should notify us on unnoticed changes
 	assert.Equal(t, "\x1b[30;46m\x1b[30;46m  INFO   \x1b[0m\x1b[0m \x1b[96m\x1b[96mmessage \x1b[90m(key=\"value\")\x1b[0m\x1b[96m\x1b[0m\x1b[0m\n", out.String())
+}
+
+func TestPtermSink_SetOutput(t *testing.T) {
+	out := bytes.Buffer{}
+
+	sink := NewPtermSink()
+	newSink := sink.SetOutput(&out)
+	assert.Equal(t, sink.writer, newSink.writer)
+
+	sink.Info(0, "message", "key", "value")
+	newSink.Info(0, "message", "key", "value")
+
+	expected := "\x1b[30;46m\x1b[30;46m  INFO   \x1b[0m\x1b[0m \x1b[96m\x1b[96mmessage \x1b[90m(key=\"value\")\x1b[0m\x1b[96m\x1b[0m\x1b[0m\n"
+	doubleLine := expected + expected
+	// The expected output is actually from "golden" execution, but it should notify us on unnoticed changes
+	assert.Equal(t, doubleLine, out.String())
 }
