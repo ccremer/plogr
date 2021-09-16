@@ -2,6 +2,8 @@ package plogr
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -18,6 +20,7 @@ type PtermSink struct {
 	keyValues        map[string]interface{}
 	messageFormatter func(msg string, keysAndValues map[string]interface{}) string
 	scope            string
+	writer           io.Writer
 }
 
 // ScopeSeparator delimits logger names.
@@ -53,6 +56,7 @@ func NewPtermSink() PtermSink {
 		ErrorPrinter:     pterm.Error,
 		keyValues:        map[string]interface{}{},
 		messageFormatter: DefaultFormatter,
+		writer:           os.Stdout,
 	}
 }
 
@@ -84,7 +88,7 @@ func (s PtermSink) Error(err error, msg string, kvs ...interface{}) {
 func (s PtermSink) print(printer pterm.PrefixPrinter, kvs []interface{}, msg string) {
 	kvMap := s.toMap(kvs...)
 	formatted := s.messageFormatter(msg, kvMap)
-	printer.Println(formatted)
+	_, _ = fmt.Fprint(s.writer, printer.Sprintln(formatted))
 }
 
 // WithValues implements logr.LogSink.
@@ -103,6 +107,7 @@ func (s PtermSink) WithValues(kvs ...interface{}) logr.LogSink {
 		LevelPrinters:    s.LevelPrinters,
 		ErrorPrinter:     s.ErrorPrinter,
 		messageFormatter: s.messageFormatter,
+		writer:           s.writer,
 	}
 }
 
@@ -116,12 +121,34 @@ func (s PtermSink) WithName(name string) logr.LogSink {
 		LevelPrinters:    map[int]pterm.PrefixPrinter{},
 		ErrorPrinter:     s.ErrorPrinter,
 		messageFormatter: s.messageFormatter,
+		writer:           s.writer,
 	}
 	for level, printer := range s.LevelPrinters {
 		newPrinter := printer.WithScope(pterm.Scope{Text: name, Style: printer.Scope.Style})
 		newSink.LevelPrinters[level] = *newPrinter
 	}
 	newSink.ErrorPrinter.Scope.Text = newSink.scope
+	return newSink
+}
+
+// SetOutput sets the new output on the given sink.
+// The difference to WithOutput is that setting the output on this instance also affects other log sinks that were created on the current state of s.
+func (s *PtermSink) SetOutput(output io.Writer) *PtermSink {
+	s.writer = output
+	return s
+}
+
+// WithOutput returns a new sink that writes log messages to the given output.
+// The difference to SetOutput is that this method doesn't alter the existing sink.
+func (s PtermSink) WithOutput(output io.Writer) *PtermSink {
+	newSink := &PtermSink{
+		scope:            s.scope,
+		keyValues:        s.keyValues,
+		LevelPrinters:    s.LevelPrinters,
+		ErrorPrinter:     s.ErrorPrinter,
+		messageFormatter: s.messageFormatter,
+		writer:           output,
+	}
 	return newSink
 }
 
