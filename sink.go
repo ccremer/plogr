@@ -152,6 +152,11 @@ func (s PtermSink) WithOutput(output io.Writer) *PtermSink {
 	return newSink
 }
 
+// GetName returns the currently configured scope name
+func (s PtermSink) GetName() string {
+	return s.scope
+}
+
 func (s *PtermSink) toMap(kvs ...interface{}) map[string]interface{} {
 	if len(kvs)%2 == 1 {
 		// Ensure an odd number of items here does not corrupt the list
