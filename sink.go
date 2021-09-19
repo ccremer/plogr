@@ -152,8 +152,8 @@ func (s PtermSink) WithOutput(output io.Writer) *PtermSink {
 	return newSink
 }
 
-// GetName returns the currently configured scope name
-func (s PtermSink) GetName() string {
+// Name returns the currently configured scope name
+func (s PtermSink) Name() string {
 	return s.scope
 }
 
