@@ -14,6 +14,9 @@ import (
 type PtermSink struct {
 	// LevelPrinters maps a pterm.PrefixPrinter to each supported log level.
 	LevelPrinters map[int]pterm.PrefixPrinter
+	// LevelEnabled enables or disables logging for the supported log levels.
+	LevelEnabled map[int]bool
+
 	// ErrorPrinter is the instance that formats and styles error messages.
 	ErrorPrinter pterm.PrefixPrinter
 
@@ -52,7 +55,11 @@ var DefaultFormatter = func(msg string, keysAndValues map[string]interface{}) st
 // PtermSink.KeyValueColor is the color that is applied when logging keys and values and defaults to pterm.FgGray.
 func NewPtermSink() PtermSink {
 	return PtermSink{
-		LevelPrinters:    DefaultLevelPrinters,
+		LevelPrinters: DefaultLevelPrinters,
+		LevelEnabled: map[int]bool{
+			0: true,
+			1: true,
+		},
 		ErrorPrinter:     pterm.Error,
 		keyValues:        map[string]interface{}{},
 		messageFormatter: DefaultFormatter,
@@ -66,9 +73,18 @@ func (s PtermSink) Init(_ logr.RuntimeInfo) {
 }
 
 // Enabled implements logr.LogSink.
-// It will only return true if the PtermSink.LevelPrinters contains the same key as given level.
+// It will return false
+//  * if LevelEnabled has a key with the level and a value "false"
+//  * if LevelPrinters does not contain the requested level as key
 func (s PtermSink) Enabled(level int) bool {
 	_, exists := s.LevelPrinters[level]
+	if exists {
+		enabled, defined := s.LevelEnabled[level]
+		if defined {
+			return enabled
+		}
+		return true
+	}
 	return exists
 }
 
@@ -105,6 +121,7 @@ func (s PtermSink) WithValues(kvs ...interface{}) logr.LogSink {
 		scope:            s.scope,
 		keyValues:        newMap,
 		LevelPrinters:    s.LevelPrinters,
+		LevelEnabled:     s.LevelEnabled,
 		ErrorPrinter:     s.ErrorPrinter,
 		messageFormatter: s.messageFormatter,
 		writer:           s.writer,
@@ -119,6 +136,7 @@ func (s PtermSink) WithName(name string) logr.LogSink {
 		scope:            s.joinName(s.scope, name),
 		keyValues:        s.keyValues,
 		LevelPrinters:    map[int]pterm.PrefixPrinter{},
+		LevelEnabled:     s.LevelEnabled,
 		ErrorPrinter:     s.ErrorPrinter,
 		messageFormatter: s.messageFormatter,
 		writer:           s.writer,
@@ -145,6 +163,7 @@ func (s PtermSink) WithOutput(output io.Writer) *PtermSink {
 		scope:            s.scope,
 		keyValues:        s.keyValues,
 		LevelPrinters:    s.LevelPrinters,
+		LevelEnabled:     s.LevelEnabled,
 		ErrorPrinter:     s.ErrorPrinter,
 		messageFormatter: s.messageFormatter,
 		writer:           output,
@@ -179,4 +198,9 @@ func (s *PtermSink) joinName(s1, s2 string) string {
 		return s2
 	}
 	return strings.Join([]string{s1, s2}, ScopeSeparator)
+}
+
+func (s *PtermSink) SetLevelEnabled(level int, enabled bool) *PtermSink {
+	s.LevelEnabled[level] = enabled
+	return s
 }
