@@ -175,3 +175,17 @@ func TestPtermSink_SetOutput(t *testing.T) {
 	// The expected output is actually from "golden" execution, but it should notify us on unnoticed changes
 	assert.Equal(t, doubleLine, out.String())
 }
+
+func TestPtermSink_WithLevelEnabled(t *testing.T) {
+	out := &bytes.Buffer{}
+
+	rootSink := NewPtermSink()
+	rootSink.SetOutput(out)
+
+	rootLogger := logr.New(rootSink.WithLevelEnabled(1, false))
+	rootLogger.Info("info message")
+	rootLogger.V(1).Info("debug message")
+
+	assert.Contains(t, out.String(), "info message")
+	assert.NotContains(t, out.String(), "debug message")
+}

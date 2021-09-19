@@ -13,7 +13,7 @@ import (
 // PtermSink implements logr.LogSink.
 type PtermSink struct {
 	// LevelPrinters maps a pterm.PrefixPrinter to each supported log level.
-	LevelPrinters map[int]pterm.PrefixPrinter
+	LevelPrinters map[int]PrinterTuple
 	// ErrorPrinter is the instance that formats and styles error messages.
 	ErrorPrinter pterm.PrefixPrinter
 
@@ -21,6 +21,14 @@ type PtermSink struct {
 	messageFormatter func(msg string, keysAndValues map[string]interface{}) string
 	scope            string
 	writer           io.Writer
+}
+
+// PrinterTuple contains fields relevant for configuring a logging Printer.
+type PrinterTuple struct {
+	// Enabled indicates whether a printer is enabled
+	Enabled bool
+	// Printer contains the actual pterm.PrefixPrinter.
+	Printer pterm.PrefixPrinter
 }
 
 // ScopeSeparator delimits logger names.
@@ -51,13 +59,20 @@ var DefaultFormatter = func(msg string, keysAndValues map[string]interface{}) st
 // PtermSink.LevelPrinters and PtermSink.ErrorPrinter are initialized with DefaultLevelPrinters resp. pterm.Error.
 // PtermSink.KeyValueColor is the color that is applied when logging keys and values and defaults to pterm.FgGray.
 func NewPtermSink() PtermSink {
-	return PtermSink{
-		LevelPrinters:    DefaultLevelPrinters,
+	sink := PtermSink{
+		LevelPrinters:    map[int]PrinterTuple{},
 		ErrorPrinter:     pterm.Error,
 		keyValues:        map[string]interface{}{},
 		messageFormatter: DefaultFormatter,
 		writer:           os.Stdout,
 	}
+	for level, printer := range DefaultLevelPrinters {
+		sink.LevelPrinters[level] = PrinterTuple{
+			Printer: printer,
+			Enabled: true,
+		}
+	}
+	return sink
 }
 
 // Init implements logr.LogSink.
@@ -68,14 +83,17 @@ func (s PtermSink) Init(_ logr.RuntimeInfo) {
 // Enabled implements logr.LogSink.
 // It will only return true if the PtermSink.LevelPrinters contains the same key as given level.
 func (s PtermSink) Enabled(level int) bool {
-	_, exists := s.LevelPrinters[level]
-	return exists
+	tuple, exists := s.LevelPrinters[level]
+	if exists {
+		return tuple.Enabled
+	}
+	return false
 }
 
 // Info implements logr.LogSink.
 func (s PtermSink) Info(level int, msg string, kvs ...interface{}) {
-	printer := s.LevelPrinters[level]
-	s.print(printer, kvs, msg)
+	tuple := s.LevelPrinters[level]
+	s.print(tuple.Printer, kvs, msg)
 }
 
 // Error implements logr.LogSink.
@@ -118,14 +136,18 @@ func (s PtermSink) WithName(name string) logr.LogSink {
 	newSink := &PtermSink{
 		scope:            s.joinName(s.scope, name),
 		keyValues:        s.keyValues,
-		LevelPrinters:    map[int]pterm.PrefixPrinter{},
+		LevelPrinters:    map[int]PrinterTuple{},
 		ErrorPrinter:     s.ErrorPrinter,
 		messageFormatter: s.messageFormatter,
 		writer:           s.writer,
 	}
-	for level, printer := range s.LevelPrinters {
+	for level, tuple := range s.LevelPrinters {
+		printer := tuple.Printer
 		newPrinter := printer.WithScope(pterm.Scope{Text: name, Style: printer.Scope.Style})
-		newSink.LevelPrinters[level] = *newPrinter
+		newSink.LevelPrinters[level] = PrinterTuple{
+			Printer: *newPrinter,
+			Enabled: tuple.Enabled,
+		}
 	}
 	newSink.ErrorPrinter.Scope.Text = newSink.scope
 	return newSink
@@ -155,6 +177,23 @@ func (s PtermSink) WithOutput(output io.Writer) *PtermSink {
 // Name returns the currently configured scope name
 func (s PtermSink) Name() string {
 	return s.scope
+}
+
+// WithLevelEnabled returns a new instance that sets the given level equal to the given flag.
+func (s PtermSink) WithLevelEnabled(level int, enabled bool) *PtermSink {
+	newSink := &PtermSink{
+		scope:            s.scope,
+		keyValues:        s.keyValues,
+		LevelPrinters:    s.LevelPrinters,
+		ErrorPrinter:     s.ErrorPrinter,
+		messageFormatter: s.messageFormatter,
+		writer:           s.writer,
+	}
+	newSink.LevelPrinters[level] = PrinterTuple{
+		Printer: s.LevelPrinters[level].Printer,
+		Enabled: enabled,
+	}
+	return newSink
 }
 
 func (s *PtermSink) toMap(kvs ...interface{}) map[string]interface{} {
