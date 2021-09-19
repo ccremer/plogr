@@ -176,6 +176,12 @@ func (s PtermSink) Name() string {
 	return s.scope
 }
 
+// SetLevelEnabled explicitly enables or disables a logging level.
+func (s *PtermSink) SetLevelEnabled(level int, enabled bool) *PtermSink {
+	s.LevelEnabled[level] = enabled
+	return s
+}
+
 func (s *PtermSink) toMap(kvs ...interface{}) map[string]interface{} {
 	if len(kvs)%2 == 1 {
 		// Ensure an odd number of items here does not corrupt the list
@@ -198,9 +204,4 @@ func (s *PtermSink) joinName(s1, s2 string) string {
 		return s2
 	}
 	return strings.Join([]string{s1, s2}, ScopeSeparator)
-}
-
-func (s *PtermSink) SetLevelEnabled(level int, enabled bool) *PtermSink {
-	s.LevelEnabled[level] = enabled
-	return s
 }
