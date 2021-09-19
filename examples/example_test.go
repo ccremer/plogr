@@ -47,10 +47,10 @@ func TestExample_PtermSink_Debug(t *testing.T) {
 
 func TestExample_PtermSink_MoreLevels(t *testing.T) {
 	sink := plogr.NewPtermSink()
-	sink.LevelPrinters[3] = plogr.PrinterTuple{Printer: pterm.Debug, Enabled: true}
-	sink.LevelPrinters[2] = plogr.PrinterTuple{Printer: plogr.DefaultLevelPrinters[0], Enabled: true}
-	sink.LevelPrinters[1] = plogr.PrinterTuple{Printer: pterm.Success, Enabled: true}
-	sink.LevelPrinters[0] = plogr.PrinterTuple{Printer: pterm.Warning, Enabled: true}
+	sink.LevelPrinters[3] = pterm.Debug
+	sink.LevelPrinters[2] = plogr.DefaultLevelPrinters[0]
+	sink.LevelPrinters[1] = pterm.Success
+	sink.LevelPrinters[0] = pterm.Warning
 	logger := logr.New(sink)
 	logger.V(0).WithName("main").Info("Warning message")
 	logger.V(1).WithName("app").Info("Success message")
