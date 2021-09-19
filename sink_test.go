@@ -182,7 +182,7 @@ func TestPtermSink_WithLevelEnabled(t *testing.T) {
 	rootSink := NewPtermSink()
 	rootSink.SetOutput(out)
 
-	rootLogger := logr.New(rootSink.WithLevelEnabled(1, false))
+	rootLogger := logr.New(rootSink.SetLevelEnabled(1, false))
 	rootLogger.Info("info message")
 	rootLogger.V(1).Info("debug message")
 
