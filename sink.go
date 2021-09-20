@@ -95,9 +95,11 @@ func (s PtermSink) Info(level int, msg string, kvs ...interface{}) {
 }
 
 // Error implements logr.LogSink.
-// The given err is appended to the keys and values array with the "error" key.
+// The given err is appended to the keys and values array with the "error" key, but only if err is non-nil.
 func (s PtermSink) Error(err error, msg string, kvs ...interface{}) {
-	kvs = append(kvs, "error", err)
+	if err != nil {
+		kvs = append(kvs, "error", err)
+	}
 	s.print(s.ErrorPrinter, kvs, msg)
 }
 
