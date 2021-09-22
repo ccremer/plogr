@@ -35,6 +35,9 @@ var DefaultLevelPrinters = map[int]pterm.PrefixPrinter{
 	1: pterm.Debug,
 }
 
+// DefaultErrorPrinter is the default pterm.PrefixPrinter for the error level.
+var DefaultErrorPrinter = *pterm.Error.WithShowLineNumber(true).WithLineNumberOffset(2)
+
 // DefaultFormatter returns a string that looks as following (with colored key/values):
 //  * message
 //  * message (key="value" foo="bar")
@@ -60,7 +63,7 @@ func NewPtermSink() PtermSink {
 			0: true,
 			1: true,
 		},
-		ErrorPrinter:     pterm.Error,
+		ErrorPrinter:     DefaultErrorPrinter,
 		keyValues:        map[string]interface{}{},
 		messageFormatter: DefaultFormatter,
 		writer:           os.Stdout,
