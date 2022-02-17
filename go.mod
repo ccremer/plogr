@@ -4,6 +4,6 @@ go 1.16
 
 require (
 	github.com/go-logr/logr v1.2.2
-	github.com/pterm/pterm v0.12.35
+	github.com/pterm/pterm v0.12.37
 	github.com/stretchr/testify v1.7.0
 )
