@@ -3,7 +3,6 @@ package plogr
 import (
 	"fmt"
 	"io"
-	"os"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -23,7 +22,6 @@ type PtermSink struct {
 	keyValues        map[string]interface{}
 	messageFormatter func(msg string, keysAndValues map[string]interface{}) string
 	scope            string
-	writer           io.Writer
 }
 
 // ScopeSeparator delimits logger names.
@@ -66,7 +64,6 @@ func NewPtermSink() PtermSink {
 		ErrorPrinter:     DefaultErrorPrinter,
 		keyValues:        map[string]interface{}{},
 		messageFormatter: DefaultFormatter,
-		writer:           os.Stdout,
 	}
 }
 
@@ -109,7 +106,7 @@ func (s PtermSink) Error(err error, msg string, kvs ...interface{}) {
 func (s PtermSink) print(printer pterm.PrefixPrinter, kvs []interface{}, msg string) {
 	kvMap := s.toMap(kvs...)
 	formatted := s.messageFormatter(msg, kvMap)
-	_, _ = fmt.Fprint(s.writer, printer.Sprintln(formatted))
+	printer.Printfln(formatted)
 }
 
 // WithValues implements logr.LogSink.
@@ -129,7 +126,6 @@ func (s PtermSink) WithValues(kvs ...interface{}) logr.LogSink {
 		LevelEnabled:     s.LevelEnabled,
 		ErrorPrinter:     s.ErrorPrinter,
 		messageFormatter: s.messageFormatter,
-		writer:           s.writer,
 	}
 }
 
@@ -144,7 +140,6 @@ func (s PtermSink) WithName(name string) logr.LogSink {
 		LevelEnabled:     s.LevelEnabled,
 		ErrorPrinter:     s.ErrorPrinter,
 		messageFormatter: s.messageFormatter,
-		writer:           s.writer,
 	}
 	for level, printer := range s.LevelPrinters {
 		newPrinter := printer.WithScope(pterm.Scope{Text: name, Style: printer.Scope.Style})
@@ -154,10 +149,12 @@ func (s PtermSink) WithName(name string) logr.LogSink {
 	return newSink
 }
 
-// SetOutput sets the new output on the given sink.
+// SetOutput is a convenience func that sets the new writer directly in pterm.PrefixPrinter.
 // The difference to WithOutput is that setting the output on this instance also affects other log sinks that were created on the current state of s.
 func (s *PtermSink) SetOutput(output io.Writer) *PtermSink {
-	s.writer = output
+	for i, printer := range s.LevelPrinters {
+		s.LevelPrinters[i] = *printer.WithWriter(output)
+	}
 	return s
 }
 
@@ -167,11 +164,13 @@ func (s PtermSink) WithOutput(output io.Writer) *PtermSink {
 	newSink := &PtermSink{
 		scope:            s.scope,
 		keyValues:        s.keyValues,
-		LevelPrinters:    s.LevelPrinters,
+		LevelPrinters:    map[int]pterm.PrefixPrinter{},
 		LevelEnabled:     s.LevelEnabled,
 		ErrorPrinter:     s.ErrorPrinter,
 		messageFormatter: s.messageFormatter,
-		writer:           output,
+	}
+	for i, printer := range s.LevelPrinters {
+		newSink.LevelPrinters[i] = *printer.WithWriter(output)
 	}
 	return newSink
 }
