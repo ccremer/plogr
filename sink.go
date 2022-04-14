@@ -18,6 +18,9 @@ type PtermSink struct {
 
 	// ErrorPrinter is the instance that formats and styles error messages.
 	ErrorPrinter pterm.PrefixPrinter
+	// FallbackPrinter is the instance that is used for a level that doesn't exist in LevelPrinters.
+	// If nil, no fallback is used and the log message gets discarded.
+	FallbackPrinter *pterm.PrefixPrinter
 
 	keyValues        map[string]interface{}
 	messageFormatter func(msg string, keysAndValues map[string]interface{}) string
@@ -75,7 +78,7 @@ func (s PtermSink) Init(_ logr.RuntimeInfo) {
 // Enabled implements logr.LogSink.
 // It will return false
 //  * if LevelEnabled has a key with the level and a value "false"
-//  * if LevelPrinters does not contain the requested level as key
+//  * if LevelPrinters does not contain the requested level as key and FallbackPrinter is nil
 func (s PtermSink) Enabled(level int) bool {
 	_, exists := s.LevelPrinters[level]
 	if exists {
@@ -85,12 +88,16 @@ func (s PtermSink) Enabled(level int) bool {
 		}
 		return true
 	}
-	return exists
+	return s.FallbackPrinter != nil
 }
 
 // Info implements logr.LogSink.
 func (s PtermSink) Info(level int, msg string, kvs ...interface{}) {
-	printer := s.LevelPrinters[level]
+	printer, found := s.LevelPrinters[level]
+	if !found {
+		// even though FallbackPrinter may be nil, it should be safe to use since Enabled() guards calling Info if fallback is disabled.
+		printer = *s.FallbackPrinter
+	}
 	s.print(printer, kvs, msg)
 }
 
@@ -119,33 +126,26 @@ func (s PtermSink) WithValues(kvs ...interface{}) logr.LogSink {
 	for i := 0; i < len(kvs); i += 2 {
 		newMap[kvs[i].(string)] = kvs[i+1]
 	}
-	return &PtermSink{
-		scope:            s.scope,
-		keyValues:        newMap,
-		LevelPrinters:    s.LevelPrinters,
-		LevelEnabled:     s.LevelEnabled,
-		ErrorPrinter:     s.ErrorPrinter,
-		messageFormatter: s.messageFormatter,
-	}
+	cpy := s.copy()
+	cpy.keyValues = newMap
+	return &cpy
 }
 
 // WithName implements logr.LogSink.
 // It returns a new logr.Logger instance that copies the pterm.PrefixPrinter from previous instance, but modifies the Scope property of the prefix printer.
 // The value of the name is joined with the existing name, delimited by ScopeSeparator.
 func (s PtermSink) WithName(name string) logr.LogSink {
-	newSink := &PtermSink{
-		scope:            s.joinName(s.scope, name),
-		keyValues:        s.keyValues,
-		LevelPrinters:    map[int]pterm.PrefixPrinter{},
-		LevelEnabled:     s.LevelEnabled,
-		ErrorPrinter:     s.ErrorPrinter,
-		messageFormatter: s.messageFormatter,
-	}
+	newSink := s.copy()
+	newSink.scope = s.joinName(s.scope, name)
+	newSink.LevelPrinters = map[int]pterm.PrefixPrinter{}
 	for level, printer := range s.LevelPrinters {
 		newPrinter := printer.WithScope(pterm.Scope{Text: name, Style: printer.Scope.Style})
 		newSink.LevelPrinters[level] = *newPrinter
 	}
 	newSink.ErrorPrinter.Scope.Text = newSink.scope
+	if newSink.FallbackPrinter != nil {
+		newSink.FallbackPrinter.Scope.Text = newSink.scope
+	}
 	return newSink
 }
 
@@ -161,18 +161,12 @@ func (s *PtermSink) SetOutput(output io.Writer) *PtermSink {
 // WithOutput returns a new sink that writes log messages to the given output.
 // The difference to SetOutput is that this method doesn't alter the existing sink.
 func (s PtermSink) WithOutput(output io.Writer) *PtermSink {
-	newSink := &PtermSink{
-		scope:            s.scope,
-		keyValues:        s.keyValues,
-		LevelPrinters:    map[int]pterm.PrefixPrinter{},
-		LevelEnabled:     s.LevelEnabled,
-		ErrorPrinter:     s.ErrorPrinter,
-		messageFormatter: s.messageFormatter,
-	}
+	newSink := s.copy()
+	newSink.LevelPrinters = map[int]pterm.PrefixPrinter{}
 	for i, printer := range s.LevelPrinters {
 		newSink.LevelPrinters[i] = *printer.WithWriter(output)
 	}
-	return newSink
+	return &newSink
 }
 
 // Name returns the currently configured scope name
@@ -184,6 +178,27 @@ func (s PtermSink) Name() string {
 func (s *PtermSink) SetLevelEnabled(level int, enabled bool) *PtermSink {
 	s.LevelEnabled[level] = enabled
 	return s
+}
+
+// WithFallbackPrinter returns a copy of s with the given fallback printer.
+// The fallback printer is used for levels that aren't explicitly defined in LevelPrinters.
+// pterm.Debug is a good starting point for a fallback printer.
+func (s PtermSink) WithFallbackPrinter(printer pterm.PrefixPrinter) *PtermSink {
+	cpy := s.copy()
+	cpy.FallbackPrinter = &printer
+	return &cpy
+}
+
+func (s PtermSink) copy() PtermSink {
+	return PtermSink{
+		LevelPrinters:    s.LevelPrinters,
+		LevelEnabled:     s.LevelEnabled,
+		ErrorPrinter:     s.ErrorPrinter,
+		FallbackPrinter:  s.FallbackPrinter,
+		keyValues:        s.keyValues,
+		messageFormatter: s.messageFormatter,
+		scope:            s.scope,
+	}
 }
 
 func (s *PtermSink) toMap(kvs ...interface{}) map[string]interface{} {

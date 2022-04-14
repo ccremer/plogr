@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/go-logr/logr"
+	"github.com/pterm/pterm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -51,7 +52,7 @@ func TestPtermSink_WithName(t *testing.T) {
 		require.Equal(t, "", logger.GetSink().(PtermSink).scope)
 
 		newLogger := logger.WithName("scope")
-		newScope := newLogger.GetSink().(*PtermSink).scope
+		newScope := newLogger.GetSink().(PtermSink).scope
 		assert.NotEqual(t, logger.GetSink().(PtermSink).scope, newScope)
 		assert.Equal(t, "scope", newScope)
 	})
@@ -59,7 +60,7 @@ func TestPtermSink_WithName(t *testing.T) {
 		require.Equal(t, "", logger.GetSink().(PtermSink).scope)
 
 		newLogger := logger.WithName("scope").WithName("nested")
-		newScope := newLogger.GetSink().(*PtermSink).scope
+		newScope := newLogger.GetSink().(PtermSink).scope
 		assert.NotEqual(t, logger.GetSink().(PtermSink).scope, newScope)
 		assert.Equal(t, "scope:nested", newScope)
 	})
@@ -71,9 +72,14 @@ func TestPtermSink_Enabled(t *testing.T) {
 		enabled := sink.Enabled(0)
 		assert.True(t, enabled)
 	})
-	t.Run("GivenInexistingLevel_ThenReturnFalse", func(t *testing.T) {
+	t.Run("GivenNonExistingLevel_ThenReturnFalse", func(t *testing.T) {
 		enabled := sink.Enabled(10000)
 		assert.False(t, enabled)
+	})
+	t.Run("GivenNonExistingLevel_WhenFallbackPrinterDefined_ThenReturnTrue", func(t *testing.T) {
+		sink = *sink.WithFallbackPrinter(pterm.Debug)
+		enabled := sink.Enabled(10000)
+		assert.True(t, enabled)
 	})
 }
 

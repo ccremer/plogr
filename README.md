@@ -41,6 +41,7 @@ func main() {
 
 That means whenever you want to show informational messages, you'd have to set the logging level to `2` in your code base.
 Alternatively, without breaking the code base, append levels like `success` to the LevelPrinters to your desired level, disregarding the verbosity increase though.
+For a logging library, it remains questionable though if you'd like to maintain warnings and success levels via plogr or whether they're better explicitly invoked in pterm.
 
 The error printer can be customized as well, but it has its own field.
 
