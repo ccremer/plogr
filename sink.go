@@ -32,16 +32,16 @@ var ScopeSeparator = ":"
 
 // DefaultLevelPrinters contains the default pterm.PrefixPrinter for a specific log levels.
 var DefaultLevelPrinters = map[int]pterm.PrefixPrinter{
-	0: *pterm.Info.WithPrefix(pterm.Prefix{Text: " INFO  ", Style: pterm.Info.Prefix.Style}),
-	1: pterm.Debug,
+	0: *pterm.Info.WithPrefix(pterm.Prefix{Text: "  INFO  ", Style: pterm.Info.Prefix.Style}),
+	1: *pterm.Debug.WithPrefix(pterm.Prefix{Text: " DBUG/1 ", Style: pterm.Debug.Prefix.Style}),
 }
 
 // DefaultErrorPrinter is the default pterm.PrefixPrinter for the error level.
 var DefaultErrorPrinter = *pterm.Error.WithShowLineNumber(true).WithLineNumberOffset(2)
 
 // DefaultFormatter returns a string that looks as following (with colored key/values):
-//  * message
-//  * message (key="value" foo="bar")
+//   - message
+//   - message (key="value" foo="bar")
 var DefaultFormatter = func(msg string, keysAndValues map[string]interface{}) string {
 	if len(keysAndValues) <= 0 {
 		return msg
@@ -77,8 +77,8 @@ func (s PtermSink) Init(_ logr.RuntimeInfo) {
 
 // Enabled implements logr.LogSink.
 // It will return false
-//  * if LevelEnabled has a key with the level and a value "false"
-//  * if LevelPrinters does not contain the requested level as key and FallbackPrinter is nil
+//   - if LevelEnabled has a key with the level and a value "false"
+//   - if LevelPrinters does not contain the requested level as key and FallbackPrinter is nil
 func (s PtermSink) Enabled(level int) bool {
 	_, exists := s.LevelPrinters[level]
 	if exists {
@@ -177,6 +177,13 @@ func (s PtermSink) Name() string {
 // SetLevelEnabled explicitly enables or disables a logging level.
 func (s *PtermSink) SetLevelEnabled(level int, enabled bool) *PtermSink {
 	s.LevelEnabled[level] = enabled
+	return s
+}
+
+// SetLevelPrinter sets the printer for the given logging level.
+// Does not enable the given log level though.
+func (s *PtermSink) SetLevelPrinter(level int, printer pterm.PrefixPrinter) *PtermSink {
+	s.LevelPrinters[level] = printer
 	return s
 }
 
