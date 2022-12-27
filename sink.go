@@ -62,7 +62,7 @@ func NewPtermSink() PtermSink {
 		LevelPrinters: DefaultLevelPrinters,
 		LevelEnabled: map[int]bool{
 			0: true,
-			1: true,
+			1: false,
 		},
 		ErrorPrinter:     DefaultErrorPrinter,
 		keyValues:        map[string]interface{}{},
