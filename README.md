@@ -14,7 +14,7 @@ See [examples](./examples/example_test.go)
 
 ### Add more colors and levels
 
-By default, only level 0 (`info`) and level 1 (`debug`) are supported.
+By default, only level 0 (`info`) and level 1 (`debug`) are configured.
 
 While go-logr doesn't have names for logging levels ("info", "warning", etc), pterm does.
 Both libraries agree that verbosity is increased with higher numeric logging level.
@@ -23,11 +23,11 @@ If you like to customize the levels or styling, you could do something like this
 
 ```go
 func main() {
-	sink := plogr.NewPtermSink()
-	sink.LevelPrinters[3] = pterm.Debug
-	sink.LevelPrinters[2] = plogr.DefaultLevelPrinters[0]
-	sink.LevelPrinters[1] = pterm.Success
-	sink.LevelPrinters[0] = pterm.Warning
+	sink := plogr.NewPtermSink().
+	    SetLevelPrinter(3, pterm.Debug).
+        SetLevelPrinter(2, plogr.DefaultLevelPrinters[0]).
+        SetLevelPrinter(1, pterm.Success).
+        SetLevelPrinter(0, pterm.Warning)
 
 	logger := logr.New(sink)
 	logger.V(0).WithName("main").Info("Warning message")
