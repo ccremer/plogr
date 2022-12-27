@@ -9,7 +9,6 @@ import (
 
 	"github.com/ccremer/plogr"
 	"github.com/go-logr/logr"
-	"github.com/pterm/pterm"
 )
 
 func TestExample_PtermSink_Error(t *testing.T) {
@@ -41,21 +40,8 @@ func TestExample_PtermSink_WithValues(t *testing.T) {
 
 func TestExample_PtermSink_Debug(t *testing.T) {
 	sink := plogr.NewPtermSink()
+	sink.SetLevelEnabled(1, true)
 	logger := logr.New(sink)
 	logger.V(5).Info("This message does not get printed", "reason", "level doesn't exist", "level", 5)
 	logger.V(1).Info("debug message that actually gets printed", "key", "value", "level", 1)
-}
-
-func TestExample_PtermSink_MoreLevels(t *testing.T) {
-	sink := plogr.NewPtermSink().WithFallbackPrinter(pterm.Debug)
-	sink.LevelPrinters[3] = pterm.Debug
-	sink.LevelPrinters[2] = plogr.DefaultLevelPrinters[0]
-	sink.LevelPrinters[1] = pterm.Success
-	sink.LevelPrinters[0] = pterm.Warning
-	logger := logr.New(sink)
-	logger.V(0).WithName("main").Info("Warning message")
-	logger.V(1).WithName("app").Info("Success message")
-	logger.V(2).WithName("database").Info("Info message", "key", "value")
-	logger.V(3).WithName("controller").Info("Debug message")
-	logger.V(50).WithName("fallback").Info("Fallback message")
 }

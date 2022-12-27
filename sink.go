@@ -18,9 +18,6 @@ type PtermSink struct {
 
 	// ErrorPrinter is the instance that formats and styles error messages.
 	ErrorPrinter pterm.PrefixPrinter
-	// FallbackPrinter is the instance that is used for a level that doesn't exist in LevelPrinters.
-	// If nil, no fallback is used and the log message gets discarded.
-	FallbackPrinter *pterm.PrefixPrinter
 
 	keyValues        map[string]interface{}
 	messageFormatter func(msg string, keysAndValues map[string]interface{}) string
@@ -32,17 +29,25 @@ var ScopeSeparator = ":"
 
 // DefaultLevelPrinters contains the default pterm.PrefixPrinter for a specific log levels.
 var DefaultLevelPrinters = map[int]pterm.PrefixPrinter{
-	0: *pterm.Info.WithPrefix(pterm.Prefix{Text: "  INFO  ", Style: pterm.Info.Prefix.Style}),
+	0: *pterm.Info.WithPrefix(pterm.Prefix{Text: DefaultPrefixFormatter(0), Style: pterm.Info.Prefix.Style}),
 	1: NewDefaultDebugPrinter(1),
+}
+
+// DefaultPrefixFormatter returns the prefix text for the given log level for all Info messages.
+var DefaultPrefixFormatter = func(level int) string {
+	if level == 0 {
+		return "  INFO  "
+	}
+	return fmt.Sprintf(" DBUG/%d ", level)
 }
 
 // NewDefaultDebugPrinter returns a new pterm.PrefixPrinter with a pterm.Prefix that contains the log level.
 func NewDefaultDebugPrinter(level int) pterm.PrefixPrinter {
-	return *pterm.Debug.WithPrefix(pterm.Prefix{Text: fmt.Sprintf(" DBUG/%d ", level), Style: pterm.Debug.Prefix.Style})
+	return *pterm.Debug.WithPrefix(pterm.Prefix{Text: DefaultPrefixFormatter(level), Style: pterm.Debug.Prefix.Style})
 }
 
 // DefaultErrorPrinter is the default pterm.PrefixPrinter for the error level.
-var DefaultErrorPrinter = *pterm.Error.WithShowLineNumber(true).WithLineNumberOffset(2)
+var DefaultErrorPrinter = *pterm.Error.WithPrefix(pterm.Prefix{Text: "  ERROR ", Style: pterm.Error.Prefix.Style}).WithShowLineNumber(true).WithLineNumberOffset(4)
 
 // DefaultFormatter returns a string that looks as following (with colored key/values):
 //   - message
@@ -61,13 +66,11 @@ var DefaultFormatter = func(msg string, keysAndValues map[string]interface{}) st
 
 // NewPtermSink returns a new logr.LogSink instance where messages are being printed with pterm.PrefixPrinter.
 // PtermSink.LevelPrinters and PtermSink.ErrorPrinter are initialized with DefaultLevelPrinters resp. pterm.Error.
-// PtermSink.KeyValueColor is the color that is applied when logging keys and values and defaults to pterm.FgGray.
 func NewPtermSink() PtermSink {
 	return PtermSink{
 		LevelPrinters: DefaultLevelPrinters,
 		LevelEnabled: map[int]bool{
 			0: true,
-			1: false,
 		},
 		ErrorPrinter:     DefaultErrorPrinter,
 		keyValues:        map[string]interface{}{},
@@ -81,27 +84,20 @@ func (s PtermSink) Init(_ logr.RuntimeInfo) {
 }
 
 // Enabled implements logr.LogSink.
-// It will return false
-//   - if LevelEnabled has a key with the level and a value "false"
-//   - if LevelPrinters does not contain the requested level as key and FallbackPrinter is nil
+// It will return true if LevelEnabled has a key with the level and a value "true"
 func (s PtermSink) Enabled(level int) bool {
-	_, exists := s.LevelPrinters[level]
-	if exists {
-		enabled, defined := s.LevelEnabled[level]
-		if defined {
-			return enabled
-		}
-		return true
+	enabled, defined := s.LevelEnabled[level]
+	if defined {
+		return enabled
 	}
-	return s.FallbackPrinter != nil
+	return false
 }
 
 // Info implements logr.LogSink.
 func (s PtermSink) Info(level int, msg string, kvs ...interface{}) {
 	printer, found := s.LevelPrinters[level]
 	if !found {
-		// even though FallbackPrinter may be nil, it should be safe to use since Enabled() guards calling Info if fallback is disabled.
-		printer = *s.FallbackPrinter
+		printer = NewDefaultDebugPrinter(level)
 	}
 	s.print(printer, kvs, msg)
 }
@@ -148,9 +144,6 @@ func (s PtermSink) WithName(name string) logr.LogSink {
 		newSink.LevelPrinters[level] = *newPrinter
 	}
 	newSink.ErrorPrinter.Scope.Text = newSink.scope
-	if newSink.FallbackPrinter != nil {
-		newSink.FallbackPrinter.Scope.Text = newSink.scope
-	}
 	return newSink
 }
 
@@ -192,21 +185,11 @@ func (s *PtermSink) SetLevelPrinter(level int, printer pterm.PrefixPrinter) *Pte
 	return s
 }
 
-// WithFallbackPrinter returns a copy of s with the given fallback printer.
-// The fallback printer is used for levels that aren't explicitly defined in LevelPrinters.
-// pterm.Debug is a good starting point for a fallback printer.
-func (s PtermSink) WithFallbackPrinter(printer pterm.PrefixPrinter) *PtermSink {
-	cpy := s.copy()
-	cpy.FallbackPrinter = &printer
-	return &cpy
-}
-
 func (s PtermSink) copy() PtermSink {
 	return PtermSink{
 		LevelPrinters:    s.LevelPrinters,
 		LevelEnabled:     s.LevelEnabled,
 		ErrorPrinter:     s.ErrorPrinter,
-		FallbackPrinter:  s.FallbackPrinter,
 		keyValues:        s.keyValues,
 		messageFormatter: s.messageFormatter,
 		scope:            s.scope,

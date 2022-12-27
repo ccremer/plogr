@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/go-logr/logr"
-	"github.com/pterm/pterm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -75,11 +74,6 @@ func TestPtermSink_Enabled(t *testing.T) {
 	t.Run("GivenNonExistingLevel_ThenReturnFalse", func(t *testing.T) {
 		enabled := sink.Enabled(10000)
 		assert.False(t, enabled)
-	})
-	t.Run("GivenNonExistingLevel_WhenFallbackPrinterDefined_ThenReturnTrue", func(t *testing.T) {
-		sink = *sink.WithFallbackPrinter(pterm.Debug)
-		enabled := sink.Enabled(10000)
-		assert.True(t, enabled)
 	})
 }
 
