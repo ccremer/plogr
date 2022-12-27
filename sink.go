@@ -33,7 +33,12 @@ var ScopeSeparator = ":"
 // DefaultLevelPrinters contains the default pterm.PrefixPrinter for a specific log levels.
 var DefaultLevelPrinters = map[int]pterm.PrefixPrinter{
 	0: *pterm.Info.WithPrefix(pterm.Prefix{Text: "  INFO  ", Style: pterm.Info.Prefix.Style}),
-	1: *pterm.Debug.WithPrefix(pterm.Prefix{Text: " DBUG/1 ", Style: pterm.Debug.Prefix.Style}),
+	1: NewDefaultDebugPrinter(1),
+}
+
+// NewDefaultDebugPrinter returns a new pterm.PrefixPrinter with a pterm.Prefix that contains the log level.
+func NewDefaultDebugPrinter(level int) pterm.PrefixPrinter {
+	return *pterm.Debug.WithPrefix(pterm.Prefix{Text: fmt.Sprintf(" DBUG/%d ", level), Style: pterm.Debug.Prefix.Style})
 }
 
 // DefaultErrorPrinter is the default pterm.PrefixPrinter for the error level.
