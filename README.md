@@ -1,12 +1,26 @@
-
-# plogr
-
-![Go version](https://img.shields.io/github/go-mod/go-version/ccremer/plogr)
-[![Version](https://img.shields.io/github/v/release/ccremer/plogr)][releases]
-[![Go Report Card](https://goreportcard.com/badge/github.com/ccremer/plogr)][goreport]
-[![Codecov](https://img.shields.io/codecov/c/github/ccremer/plogr?token=DB62QRSU2D)][codecov]
+# ARCHIVED: plogr
 
 [go-logr](https://github.com/go-logr/logr) implementation with [pterm](https://github.com/pterm/pterm)
+
+This project is archived, as it's not needed anymore with the introduction of `log/slog` in Go 1.21 and [pterm's](https://github.com/pterm/pterm) direct support.
+
+You can easily achieve a very similar experience with pterm and slog directly:
+
+```go
+handler := pterm.NewSlogHandler(&pterm.DefaultLogger)
+pterm.DefaultLogger.Level = pterm.LogLevelInfo
+pterm.DefaultLogger.ShowCaller = true
+pterm.DefaultLogger.CallerOffset = 2
+slogger := slog.New(handler)
+slog.SetDefault(slogger)
+
+ctx := logr.NewContextWithSlogLogger(context.Background(), slogger)
+log := logr.FromContextOrDiscard(ctx)
+log.Info("message", "key", "value")
+```
+
+Sure, the log output is slightly different, but this is not worth further maintaining this project.
+Less code and dependencies is better in most cases anyway.
 
 ## Usage
 
@@ -44,7 +58,3 @@ Alternatively, without breaking the code base, append levels like `success` to t
 For a logging library, it remains questionable though if you'd like to maintain warnings and success levels via plogr or whether they're better explicitly invoked in pterm.
 
 The error printer can be customized as well, but it has its own field.
-
-[releases]: https://github.com/ccremer/plogr/releases
-[codecov]: https://app.codecov.io/gh/ccremer/plogr
-[goreport]: https://goreportcard.com/report/github.com/ccremer/plogr
